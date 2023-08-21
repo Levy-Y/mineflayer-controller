@@ -41,6 +41,61 @@ def abort_queue():
 def pause_queue():
     print("TODO 2")
 
+botHealth = 20
+
+def makeBot(x, y, z):
+    bot = mineflayer.createBot({
+        "host": data['server_ip'],
+        "port": data['server_port'],
+        "username": data['bot_name'],
+    })
+    
+    bot.loadPlugin(pathfinder.pathfinder)
+    bot.loadPlugin(armorManager)
+    
+    if data["quit_on_low_health"] == True:
+        @On(bot, "health")
+        def health(this):
+            global botHealth
+            if bot.health >= botHealth:
+                botHealth = bot.health
+                return
+            
+            botHealth = bot.health
+            if botHealth < data["low_health_threashold"]:
+                bot.quit()
+
+    if data['armor_equip'] == True:
+        bot.armorManager.equipAll()
+            
+    global pos
+    pos = Vec3(float(x), float(y), float(z))
+    bot.loadPlugin(pathfinder.pathfinder)
+    mcData = require('minecraft-data')(bot.version)
+    movements = pathfinder.Movements(bot, mcData)
+    
+    bot.pathfinder.setMovements(movements)
+    bot.pathfinder.setGoal(pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, RANGE_GOAL))
+    
+    @On(bot, "goal_reached")
+    def handleGaolReached(_, result):
+        if data["drop_items_on_arrival"] == True:
+            inventoryItemCount = bot.inventory.items()
+            print(inventoryItemCount)
+            # if inventoryItemCount == 0:
+            #     return
+            
+            # while inventoryItemCount > 0:
+            #     item = bot.inventory.items()[0]
+            #     bot.tossStack(item)
+            #     inventoryItemCount -= 1
+        
+        if data["disconnect_on_arrival"] == True:
+            bot.quit()
+            st.info(f"Arrived at x: {float(x)}, y: {float(y)}, z: {float(z)}, leaving server..")
+        else:
+            return
+
 def main():
     st.markdown(
         "<style>"
@@ -90,89 +145,56 @@ def main():
             x = st.text_input("x", label_visibility="collapsed", placeholder="x")
             drop_items_toggle = tog.st_toggle_switch(label="Drop-off items", 
                         key="Key10", 
-                        default_value=True, 
+                        default_value=data["drop_items_on_arrival"], 
                         label_after = False, 
                         inactive_color = '#D3D3D3', 
                         active_color="#11567f", 
                         track_color="#29B5E8",
                         )
+            
+            def saveDropToggle():
+                with open('data\data.json', 'r') as file:
+                    data = json.load(file)
+                
+                data['drop_items_on_arrival'] = drop_items_toggle
+                
+                with open('data\data.json', 'w') as file:
+                    json.dump(data, file, indent=4)
+            
+            if drop_items_toggle == True or drop_items_toggle == False:
+                saveDropToggle()
+                
         with col2:
             y = st.text_input("y", label_visibility="collapsed", placeholder="y")
             should_disconnect = tog.st_toggle_switch(label="Disconnect", 
                         key="Key5", 
-                        default_value=False, 
+                        default_value=data["disconnect_on_arrival"], 
                         label_after = False, 
                         inactive_color = '#D3D3D3', 
                         active_color="#11567f", 
                         track_color="#29B5E8",
                         )
+            
+            def saveDisconnectToggle():
+                with open('data\data.json', 'r') as file:
+                    data = json.load(file)
+                
+                data['disconnect_on_arrival'] = should_disconnect
+                
+                with open('data\data.json', 'w') as file:
+                    json.dump(data, file, indent=4)
+            
+            if drop_items_toggle == True or drop_items_toggle == False:
+                saveDisconnectToggle()
+            
         with col3:
             z = st.text_input("z", label_visibility="collapsed", placeholder="z")
         with col4:
             start_dropoff_bot = st.button("Start bot")
         
         if start_dropoff_bot:
-            global quit_already
-            quit_already = False
             try:
-                bot = mineflayer.createBot({
-                    "host": data['server_ip'],
-                    "port": data['server_port'],
-                    "username": data['bot_name'],
-                })
-                
-                bot.loadPlugin(pathfinder.pathfinder)
-                bot.loadPlugin(armorManager)
-                
-                if data["quit_on_low_health"] == True:
-                    botHealth = bot.health
-                    
-                    @On(bot, "health")
-                    def health(this)
-                        nonlocal botHealth
-                        if bot.health == botHealth:
-                            return
-                        
-                        botHealth = bot.health
-                        
-                        if quit_already == False:
-                            if botHealth < data["low_health_threshold"]:
-                                quit_already = True
-                                bot.quit()
-                        else:
-                            return
-                
-                if data['armor_equip'] == True:
-                    bot.armorManager.equipAll()
-                
-                global pos
-                pos = Vec3(float(x), float(y), float(z))
-                bot.loadPlugin(pathfinder.pathfinder)
-                mcData = require('minecraft-data')(bot.version)
-                movements = pathfinder.Movements(bot, mcData)
-                
-                bot.pathfinder.setMovements(movements)
-                bot.pathfinder.setGoal(pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, RANGE_GOAL))
-                
-                @On(bot, "goal_reached")
-                def handleGaolReached(_, result):
-                    if drop_items_toggle == True:
-                        inventoryItemCount = bot.inventory.items()
-                        print(inventoryItemCount)
-                        # if inventoryItemCount == 0:
-                        #     return
-                        
-                        # while inventoryItemCount > 0:
-                        #     item = bot.inventory.items()[0]
-                        #     bot.tossStack(item)
-                        #     inventoryItemCount -= 1
-                    
-                    if should_disconnect == True:
-                        bot.quit()
-                        st.info(f"Arrived at x: {float(x)}, y: {float(y)}, z: {float(z)}, leaving server..")
-                    else:
-                        return
-                
+                makeBot(x, y, z)
                 st.toast("Bot started!", icon="✅")
 
             except ValueError:

@@ -4,5 +4,7 @@
     "bot_name": "test",
     "quit_on_low_health": true,
     "low_health_threshold": 10,
-    "armor_equip": true
+    "armor_equip": true,
+    "drop_items_on_arrival": true,
+    "disconnect_on_arrival": false
 }
