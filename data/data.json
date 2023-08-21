@@ -1,0 +1,8 @@
+{
+    "server_ip": "127.0.0.1",
+    "server_port": "25565",
+    "bot_name": "test",
+    "quit_on_low_health": true,
+    "low_health_threshold": 10,
+    "armor_equip": true
+}
